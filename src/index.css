@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Tactile bouncy buttons for kids */
+.btn-kid {
+  @apply transform transition-all duration-150 active:scale-95 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed select-none;
+}
+
+.keypad-btn {
+  @apply flex items-center justify-center font-bold rounded-2xl transition-all duration-100 active:scale-90 shadow-sm active:shadow-inner text-slate-800 text-2xl sm:text-3xl font-sans select-none touch-manipulation;
+}
+
+/* Pulsing and glowing highlights */
+.glow-success {
+  box-shadow: 0 0 25px rgba(52, 211, 153, 0.6);
+}
+
+.glow-error {
+  box-shadow: 0 0 25px rgba(248, 113, 113, 0.6);
+}
+

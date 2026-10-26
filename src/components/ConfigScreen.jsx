@@ -1,0 +1,506 @@
+import React, { useState } from 'react';
+import { 
+  Play, 
+  HelpCircle, 
+  Sliders, 
+  Check, 
+  CheckCheck, 
+  Sparkles, 
+  Settings2,
+  Award,
+  AlertCircle
+} from 'lucide-react';
+import { OPERATION_CONFIG } from '../utils/mathGenerator';
+
+export default function ConfigScreen({ initialConfig, onStartTest }) {
+  const [operations, setOperations] = useState(initialConfig.operations || ['addition']);
+  const [maxNumber, setMaxNumber] = useState(initialConfig.maxNumber || 20);
+  const [customMax, setCustomMax] = useState(initialConfig.customMax || '');
+  const [isCustomMax, setIsCustomMax] = useState(initialConfig.isCustomMax || false);
+
+  // Multiplication limits
+  const [tableStart, setTableStart] = useState(initialConfig.tableStart || 2);
+  const [tableEnd, setTableEnd] = useState(initialConfig.tableEnd || 5);
+  const [selectedTables, setSelectedTables] = useState(initialConfig.selectedTables || [2, 3, 4, 5]);
+  const [multiplicationSelectionMode, setMultiplicationSelectionMode] = useState(
+    initialConfig.multiplicationSelectionMode || 'range'
+  ); // 'range' | 'specific'
+
+  // Questions count
+  const [questionCount, setQuestionCount] = useState(initialConfig.questionCount || 10);
+
+  // Feedback mode: 'immediate' | 'end'
+  const [feedbackMode, setFeedbackMode] = useState(initialConfig.feedbackMode || 'immediate');
+
+  // Assistance option (Immediate mode only)
+  const [enableAssistance, setEnableAssistance] = useState(
+    initialConfig.enableAssistance !== undefined ? initialConfig.enableAssistance : true
+  );
+  const [maxFailedAttempts, setMaxFailedAttempts] = useState(
+    initialConfig.maxFailedAttempts || 2
+  );
+
+  const [validationError, setValidationError] = useState('');
+
+  // Toggle operations
+  const toggleOperation = (opId) => {
+    if (operations.includes(opId)) {
+      if (operations.length === 1) {
+        setValidationError('Valitse vähintään yksi laskutapa!');
+        return;
+      }
+      setOperations(operations.filter((o) => o !== opId));
+      setValidationError('');
+    } else {
+      setOperations([...operations, opId]);
+      setValidationError('');
+    }
+  };
+
+  // Quick range pills for addition/subtraction bounds (Finnish school standards)
+  const RANGE_PRESETS = [
+    { label: '0–10', value: 10, grade: '1. luokan syksy' },
+    { label: '0–20', value: 20, grade: '1. luokan kevät' },
+    { label: '0–50', value: 50, grade: '2. luokan syksy' },
+    { label: '0–100', value: 100, grade: '2. luokan kevät' },
+  ];
+
+  // Specific multiplication tables toggle
+  const toggleSpecificTable = (num) => {
+    if (selectedTables.includes(num)) {
+      if (selectedTables.length === 1) {
+        setValidationError('Valitse vähintään yksi kertotaulu!');
+        return;
+      }
+      setSelectedTables(selectedTables.filter((t) => t !== num));
+      setValidationError('');
+    } else {
+      const updated = [...selectedTables, num].sort((a, b) => a - b);
+      setSelectedTables(updated);
+      setValidationError('');
+    }
+  };
+
+  const handleStart = () => {
+    if (operations.length === 0) {
+      setValidationError('Valitse vähintään yksi laskutapa jatkaaksesi!');
+      return;
+    }
+
+    const finalMax = isCustomMax
+      ? Math.max(5, parseInt(customMax) || 20)
+      : maxNumber;
+
+    const config = {
+      operations,
+      maxNumber: finalMax,
+      minNumber: 0,
+      customMax: isCustomMax ? finalMax : '',
+      isCustomMax,
+      tableStart: Math.min(tableStart, tableEnd),
+      tableEnd: Math.max(tableStart, tableEnd),
+      selectedTables: multiplicationSelectionMode === 'specific' ? selectedTables : [],
+      multiplicationSelectionMode,
+      questionCount: parseInt(questionCount) || 10,
+      feedbackMode,
+      enableAssistance: feedbackMode === 'immediate' ? enableAssistance : false,
+      maxFailedAttempts: parseInt(maxFailedAttempts) || 2,
+    };
+
+    onStartTest(config);
+  };
+
+  const hasMultiplicationOrDivision = operations.includes('multiplication') || operations.includes('division');
+  const hasAdditionOrSubtraction = operations.includes('addition') || operations.includes('subtraction');
+
+  return (
+    <div className="w-full max-w-2xl mx-auto px-4 py-4 sm:py-6">
+      {/* Welcome Hero */}
+      <div className="text-center mb-6">
+        <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-900 rounded-full text-sm font-bold mb-2 shadow-sm">
+          <span>🌟</span>
+          <span>Hauskaa matikan harjoittelua</span>
+        </div>
+        <h1 className="text-3xl sm:text-4xl font-black text-slate-800 tracking-tight">
+          Valitse harjoituksen asetukset
+        </h1>
+        <p className="text-slate-600 font-medium mt-1 text-base sm:text-lg">
+          Valitse laskutapa, vaikeustaso ja kysymysten määrä!
+        </p>
+      </div>
+
+      {validationError && (
+        <div className="mb-5 p-3.5 bg-rose-50 border-2 border-rose-300 rounded-2xl flex items-center gap-3 text-rose-800 font-bold animate-bounce-short">
+          <AlertCircle className="w-6 h-6 text-rose-500 shrink-0" />
+          <span>{validationError}</span>
+        </div>
+      )}
+
+      <div className="space-y-6">
+        {/* SECTION 1: OPERATIONS */}
+        <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-md border-2 border-slate-100">
+          <label className="block text-slate-800 font-black text-lg sm:text-xl mb-3 flex items-center gap-2">
+            <span className="w-7 h-7 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-black">1</span>
+            <span>Mitä haluat harjoitella?</span>
+            <span className="text-xs text-slate-400 font-normal ml-auto">(Valitse yksi tai useampi)</span>
+          </label>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+            {Object.values(OPERATION_CONFIG).map((op) => {
+              const isSelected = operations.includes(op.id);
+              return (
+                <button
+                  key={op.id}
+                  type="button"
+                  onClick={() => toggleOperation(op.id)}
+                  className={`p-3.5 sm:p-4 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative ${
+                    isSelected
+                      ? `${op.lightColor} border-current shadow-md scale-[1.02] ring-2 ring-blue-400`
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {isSelected && (
+                    <div className="absolute top-2 right-2 w-5 h-5 bg-blue-600 rounded-full text-white flex items-center justify-center text-xs font-bold">
+                      ✓
+                    </div>
+                  )}
+                  <span className="text-3xl sm:text-4xl">{op.icon}</span>
+                  <span className="font-extrabold text-sm sm:text-base leading-tight mt-1">
+                    {op.nameFi.split(' ')[0]}
+                  </span>
+                  <span className="text-xs font-semibold opacity-75">
+                    {op.symbol}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* SECTION 2: DIFFICULTY / LIMITS */}
+        {hasAdditionOrSubtraction && (
+          <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-md border-2 border-slate-100">
+            <label className="block text-slate-800 font-black text-lg sm:text-xl mb-1 flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-sm font-black">2</span>
+              <span>Yhteen- ja vähennyslaskun lukualue</span>
+            </label>
+            <p className="text-xs sm:text-sm text-slate-500 mb-3">
+              Vastaukset ovat aina positiivisia (ei negatiivisia lukuja).
+            </p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-3">
+              {RANGE_PRESETS.map((preset) => {
+                const isSelected = !isCustomMax && maxNumber === preset.value;
+                return (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    onClick={() => {
+                      setMaxNumber(preset.value);
+                      setIsCustomMax(false);
+                    }}
+                    className={`p-3 rounded-2xl border-2 text-center transition-all ${
+                      isSelected
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-sm ring-2 ring-emerald-300 font-black'
+                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 font-bold'
+                    }`}
+                  >
+                    <div className="text-xl sm:text-2xl font-black">{preset.label}</div>
+                    <div className="text-[11px] font-semibold text-emerald-700/80 mt-0.5">{preset.grade}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Custom max option */}
+            <div className="flex items-center gap-3 pt-2 border-t border-slate-100">
+              <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isCustomMax}
+                  onChange={(e) => setIsCustomMax(e.target.checked)}
+                  className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-400"
+                />
+                <span>Muu maksimiluku:</span>
+              </label>
+              {isCustomMax && (
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="5"
+                  max="1000"
+                  value={customMax}
+                  onChange={(e) => setCustomMax(e.target.value)}
+                  placeholder="esim. 30"
+                  className="w-28 px-3 py-1.5 text-base font-bold border-2 border-emerald-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* SECTION 3: MULTIPLICATION & DIVISION GRANULAR LIMITS */}
+        {hasMultiplicationOrDivision && (
+          <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-md border-2 border-slate-100">
+            <label className="block text-slate-800 font-black text-lg sm:text-xl mb-1 flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-black">
+                {hasAdditionOrSubtraction ? '3' : '2'}
+              </span>
+              <span>Kertotaulujen valinta</span>
+            </label>
+            <p className="text-xs sm:text-sm text-slate-500 mb-3">
+              Valitse tietyt kertotaulut (1–10) tai haluamasi lukuväli.
+            </p>
+
+            {/* Mode selector */}
+            <div className="flex gap-2 mb-4 bg-slate-100 p-1 rounded-2xl w-fit">
+              <button
+                type="button"
+                onClick={() => setMultiplicationSelectionMode('range')}
+                className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  multiplicationSelectionMode === 'range'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Lukuväli (esim. 2 – 6)
+              </button>
+              <button
+                type="button"
+                onClick={() => setMultiplicationSelectionMode('specific')}
+                className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  multiplicationSelectionMode === 'specific'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Yksittäiset taulut
+              </button>
+            </div>
+
+            {multiplicationSelectionMode === 'range' ? (
+              <div className="p-4 bg-blue-50/60 rounded-2xl border border-blue-200">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      Mistä taulusta:
+                    </label>
+                    <select
+                      value={tableStart}
+                      onChange={(e) => setTableStart(parseInt(e.target.value))}
+                      className="w-full bg-white border-2 border-blue-300 font-black text-lg rounded-xl p-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                        <option key={n} value={n}>
+                          {n}. kertotaulu
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      Mihin tauluun asti:
+                    </label>
+                    <select
+                      value={tableEnd}
+                      onChange={(e) => setTableEnd(parseInt(e.target.value))}
+                      className="w-full bg-white border-2 border-blue-300 font-black text-lg rounded-xl p-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                        <option key={n} value={n}>
+                          {n}. kertotaulu
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <p className="mt-3 text-xs sm:text-sm text-blue-700 font-bold text-center">
+                  Harjoitellaan tauluja: {Math.min(tableStart, tableEnd)} – {Math.max(tableStart, tableEnd)} (kertolaskut 1–10)
+                </p>
+              </div>
+            ) : (
+              <div>
+                <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 mb-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+                    const isSelected = selectedTables.includes(num);
+                    return (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => toggleSpecificTable(num)}
+                        className={`h-12 rounded-xl font-black text-lg border-2 transition-all ${
+                          isSelected
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-105'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTables([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])}
+                    className="text-xs font-bold text-blue-600 hover:underline"
+                  >
+                    Valitse kaikki (1–10)
+                  </button>
+                  <span className="text-slate-300">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTables([2, 5, 10])}
+                    className="text-xs font-bold text-blue-600 hover:underline"
+                  >
+                    Helpot (2, 5, 10)
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SECTION 4: TEST LENGTH (NUMBER OF QUESTIONS) */}
+        <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-md border-2 border-slate-100">
+          <label className="block text-slate-800 font-black text-lg sm:text-xl mb-3 flex items-center gap-2">
+            <span className="w-7 h-7 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-black">
+              {hasAdditionOrSubtraction && hasMultiplicationOrDivision ? '4' : '3'}
+            </span>
+            <span>Kysymysten määrä</span>
+          </label>
+
+          <div className="grid grid-cols-4 gap-2.5 sm:gap-3">
+            {[5, 10, 20, 50].map((cnt) => {
+              const isSelected = questionCount === cnt;
+              return (
+                <button
+                  key={cnt}
+                  type="button"
+                  onClick={() => setQuestionCount(cnt)}
+                  className={`py-3 sm:py-4 rounded-2xl border-2 font-black text-xl sm:text-2xl transition-all ${
+                    isSelected
+                      ? 'bg-purple-500 text-white border-purple-600 shadow-md ring-2 ring-purple-300 scale-105'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  {cnt}
+                  <span className="block text-xs font-semibold mt-0.5 opacity-90">laskua</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* SECTION 5: FEEDBACK MODE & ASSISTANCE */}
+        <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-md border-2 border-slate-100">
+          <label className="block text-slate-800 font-black text-lg sm:text-xl mb-3 flex items-center gap-2">
+            <span className="w-7 h-7 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-black">
+              {hasAdditionOrSubtraction && hasMultiplicationOrDivision ? '5' : '4'}
+            </span>
+            <span>Palautetapa & Apu</span>
+          </label>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+            <button
+              type="button"
+              onClick={() => setFeedbackMode('immediate')}
+              className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                feedbackMode === 'immediate'
+                  ? 'bg-amber-50 border-amber-400 text-slate-900 shadow-sm ring-2 ring-amber-300'
+                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-black text-base sm:text-lg flex items-center gap-1.5">
+                  <span>⚡</span> Välitön palaute
+                </span>
+                {feedbackMode === 'immediate' && (
+                  <span className="w-5 h-5 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs">✓</span>
+                )}
+              </div>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                Kertoo heti jokaisen laskun jälkeen, oliko vastaus oikein. Suositeltava harjoitteluun!
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFeedbackMode('end')}
+              className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                feedbackMode === 'end'
+                  ? 'bg-indigo-50 border-indigo-400 text-slate-900 shadow-sm ring-2 ring-indigo-300'
+                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-black text-base sm:text-lg flex items-center gap-1.5">
+                  <span>📝</span> Kokeen lopussa
+                </span>
+                {feedbackMode === 'end' && (
+                  <span className="w-5 h-5 bg-indigo-500 text-white rounded-full flex items-center justify-center text-xs">✓</span>
+                )}
+              </div>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                Pisteet ja virheet näytetään vasta kun koko koe on valmis. Sopii koetilanteisiin!
+              </p>
+            </button>
+          </div>
+
+          {/* Assistance toggle (Only shown if Immediate mode) */}
+          {feedbackMode === 'immediate' && (
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div className="pr-3">
+                  <span className="font-bold text-slate-800 text-sm sm:text-base block">
+                    Näytä oikea vastaus virheiden jälkeen
+                  </span>
+                  <span className="text-xs text-slate-500 block mt-0.5">
+                    Auttaa lasta oppimaan oikean tuloksen, jos lasku tuntuu vaikealta.
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={enableAssistance}
+                  onChange={(e) => setEnableAssistance(e.target.checked)}
+                  className="w-6 h-6 text-amber-500 rounded-lg focus:ring-amber-400 cursor-pointer"
+                />
+              </label>
+
+              {enableAssistance && (
+                <div className="mt-3 pt-3 border-t border-slate-200 flex items-center gap-2">
+                  <span className="text-xs sm:text-sm font-semibold text-slate-600">
+                    Paljasta oikea vastaus, kun on yritetty:
+                  </span>
+                  <select
+                    value={maxFailedAttempts}
+                    onChange={(e) => setMaxFailedAttempts(e.target.value)}
+                    className="bg-white border-2 border-slate-300 rounded-xl px-2.5 py-1 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="1">1 väärän yrityksen jälkeen</option>
+                    <option value="2">2 väärän yrityksen jälkeen (Suositus)</option>
+                    <option value="3">3 väärän yrityksen jälkeen</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* START BUTTON */}
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={handleStart}
+            className="w-full py-4 sm:py-5 bg-gradient-to-r from-emerald-500 via-teal-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-black text-2xl sm:text-3xl rounded-3xl shadow-xl hover:shadow-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+          >
+            <Play className="w-8 h-8 fill-current" />
+            <span>Aloita harjoitus!</span>
+            <Sparkles className="w-6 h-6 animate-spin" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+

@@ -1,0 +1,95 @@
+name: Deploy to Azure Static Web Apps (OIDC + Managed Identity)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build_and_deploy:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    name: Build & Deploy
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22 # Recommended Active LTS (or 'lts/*' for latest stable)
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build client application
+        run: npm run build
+
+      - name: Log in to Azure via OIDC (User-Assigned Managed Identity)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }} # Client ID of the User-Assigned Managed Identity
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Retrieve ephemeral SWA deployment token
+        id: swa_token
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            TOKEN=$(az staticwebapp secrets list \
+              --name "${{ vars.AZURE_SWA_NAME }}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --query "properties.apiKey" -o tsv)
+            echo "::add-mask::$TOKEN"
+            echo "api_token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.swa_token.outputs.api_token }}
+          action: "upload"
+          app_location: "/"
+          output_location: "dist"
+          skip_app_build: true
+
+  close_pull_request:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close PR Preview Environment
+    steps:
+      - name: Log in to Azure via OIDC (User-Assigned Managed Identity)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }} # Client ID of the User-Assigned Managed Identity
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Retrieve ephemeral SWA deployment token
+        id: swa_token
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            TOKEN=$(az staticwebapp secrets list \
+              --name "${{ vars.AZURE_SWA_NAME }}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --query "properties.apiKey" -o tsv)
+            echo "::add-mask::$TOKEN"
+            echo "api_token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Close PR Environment
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.swa_token.outputs.api_token }}
+          action: "close"
+
